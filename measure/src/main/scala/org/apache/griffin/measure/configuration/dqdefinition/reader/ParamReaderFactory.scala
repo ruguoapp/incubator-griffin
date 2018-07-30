@@ -31,7 +31,9 @@ object ParamReaderFactory {
     * @return
     */
   def getParamReader(pathOrJson: String): ParamReader = {
-    val strType = paramStrType(pathOrJson)
+    // Unescape the back-tick.
+    val value = pathOrJson.replaceAll("\\\\`", "\\`")
+    val strType = paramStrType(value)
     if (json.equals(strType)) ParamJsonReader(pathOrJson)
     else ParamFileReader(pathOrJson)
   }
