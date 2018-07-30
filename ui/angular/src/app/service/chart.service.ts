@@ -61,29 +61,36 @@ export class ChartService {
   }
 
   getMetricData(metric) {
-    var data = [];
+    var data = {"name": "unknown", "data": [], "min": +Infinity, "max": -Infinity};
+    var valueGetter : (any) => number = valueGetter = (v) => 0;
     if (metric.details) {
       var chartData = metric.details;
+      if (chartData.length >= 1) {
+        console.log(chartData[0].value);
+        if (chartData[0].value.hasOwnProperty('matched') && chartData[0].value.hasOwnProperty('total')) {
+          data.name = "accuracy%";
+          valueGetter = (v) => parseFloat((v.matched / v.total * 100).toFixed(2));
+        } else if (Object.getOwnPropertyNames(chartData[0].value).length == 1) {
+          data.name = Object.getOwnPropertyNames(chartData[0].value)[0];
+          valueGetter = (v) => parseFloat(v[data.name]);
+        } else {
+          data.name = "unknown";
+          valueGetter = (v) => 0;
+          console.log("Too many properties");
+          console.log(chartData[0].value);
+        }
+      }
       for (var i = 0; i < chartData.length; i++) {
-        if (chartData[i].value.total != 0)
-          data.push([
-            this.formatTimeStamp(chartData[i].tmst),
-            parseFloat(
-              (
-                chartData[i].value.matched /
-                chartData[i].value.total *
-                100
-              ).toFixed(2)
-            )
-          ]);
-        else
-          data.push([
-            this.formatTimeStamp(chartData[i].tmst),
-            parseFloat((0).toFixed(2))
-          ]);
+        let newValue = valueGetter(chartData[i].value);
+        data.min = Math.min(data.min, newValue);
+        data.max = Math.max(data.max, newValue);
+        data.data.push([
+          this.formatTimeStamp(chartData[i].tmst),
+          newValue
+        ]);
       }
     }
-    data.sort(function(a, b) {
+    data.data.sort(function(a, b) {
       return a[0] - b[0];
     });
     return data;
@@ -132,7 +139,7 @@ export class ChartService {
         type: "value",
         scale: true,
         splitNumber: 2,
-        name: "accuracy%",
+        name: data.name,
         axisLabel: {
           formatter: this.formatter_value,
           color: "white"
@@ -149,8 +156,7 @@ export class ChartService {
         },
         nameTextStyle: {
           color: "white"
-        },
-        max: 100
+        }
       },
       series: {}
     };
@@ -163,7 +169,7 @@ export class ChartService {
     var data = this.getMetricData(metric);
     series.push({
       type: "line",
-      data: data,
+      data: data.data,
       smooth: true,
       lineStyle: {
         normal: {
@@ -237,7 +243,7 @@ export class ChartService {
       yAxis: {
         type: "value",
         scale: true,
-        name: "accuracy%",
+        name: data.name,
         axisLabel: {
           formatter: this.formatter_value,
           color: "white"
@@ -255,8 +261,7 @@ export class ChartService {
         nameTextStyle: {
           color: "white"
         },
-        splitNumber: 2,
-        max: 100
+        splitNumber: 2
       },
       series: {}
     };
@@ -326,7 +331,7 @@ export class ChartService {
             type: "dashed"
           }
         },
-        name: "accuracy%",
+        name: data.name,
         axisLabel: {
           formatter: null,
           color: "white"
@@ -338,8 +343,7 @@ export class ChartService {
         },
         nameTextStyle: {
           color: "white"
-        },
-        max: 100
+        }
       },
       animation: true,
       series: {}
@@ -348,3 +352,4 @@ export class ChartService {
     return option;
   }
 }
+
