@@ -24,16 +24,10 @@
       }
     },
     {
-      "type": "hdfs",
-      "config": {
-        "path": "hdfs:///griffin/persist"
-      }
-    },
-    {
       "type": "http",
       "config": {
         "method": "post",
-        "api": "http://es:9200/griffin/accuracy"
+        "api": "http://172.31.62.78:9200/griffin/accuracy"
       }
     }
   ],
