@@ -1,5 +1,5 @@
 {
-  "file": "hdfs:///griffin/griffin-measure.jar",
+  "file": "s3n://jike-data-warehouse/jars/griffin-measure.jar",
   "className": "org.apache.griffin.measure.Application",
   "name": "griffin",
   "queue": "default",
@@ -7,9 +7,6 @@
   "executorCores": 1,
   "driverMemory": "1g",
   "executorMemory": "1g",
-  "conf": {
-    "spark.yarn.dist.files": "hdfs:///home/spark_conf/hive-site.xml"
-  },
   "files": [
   ]
 }
