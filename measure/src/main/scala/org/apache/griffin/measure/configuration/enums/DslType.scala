@@ -29,7 +29,7 @@ sealed trait DslType {
 }
 
 object DslType {
-  private val dslTypes: List[DslType] = List(SparkSqlType, GriffinDslType, DataFrameOpsType)
+  private val dslTypes: List[DslType] = List(SparkSqlType, GriffinDslType, JikeDslType, DataFrameOpsType)
   def apply(ptn: String): DslType = {
     dslTypes.find(tp => ptn match {
       case tp.idPattern() => true
@@ -61,4 +61,12 @@ object DslType {
  case object GriffinDslType extends DslType {
   val idPattern = "^(?i)griffin-?dsl$".r
   val desc = "griffin-dsl"
+}
+
+/**
+  * jike-dsl: jike dsl rule, to define data quality measurements easier
+  */
+ case object JikeDslType extends DslType {
+  val idPattern = "^(?i)jike-?(?:dsl|sql)$".r
+  val desc = "jike-dsl"
 }
