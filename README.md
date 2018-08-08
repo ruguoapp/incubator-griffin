@@ -1,71 +1,139 @@
+# Apache Griffin for Jike
 
+Apache Griffin is a model driven data quality solution for modern data systems. It provides a
+standard process to define data quality measures, execute, report, as well as an unified dashboard
+across multiple data systems.
 
-<!--
-Licensed to the Apache Software Foundation (ASF) under one
-or more contributor license agreements.  See the NOTICE file
-distributed with this work for additional information
-regarding copyright ownership.  The ASF licenses this file
-to you under the Apache License, Version 2.0 (the
-"License"); you may not use this file except in compliance
-with the License.  You may obtain a copy of the License at
+This repo is a fork for Jike. It includes some jike specific configurations and UDF/DSL.
 
-  http://www.apache.org/licenses/LICENSE-2.0
+## TL;DR
 
-Unless required by applicable law or agreed to in writing,
-software distributed under the License is distributed on an
-"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-KIND, either express or implied.  See the License for the
-specific language governing permissions and limitations
-under the License.
--->
+魔改 [all_checks.json](https://github.com/ruguoapp/incubator-griffin/blob/jike/jike-dq-checks/all_checks.json),
+运行 [update_checks.py](https://github.com/ruguoapp/incubator-griffin/blob/jike/jike-dq-checks/update_checks.py).
+祈祷没问题.
 
+## Concepts
 
-# Apache Griffin  
-[![Build Status](https://travis-ci.org/apache/incubator-griffin.svg?branch=master)](https://travis-ci.org/apache/incubator-griffin) [![License: Apache 2.0](https://camo.githubusercontent.com/8cb994f6c4a156c623fe057fccd7fb7d7d2e8c9b/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f6c6963656e73652d417061636865253230322d3445423142412e737667)](https://www.apache.org/licenses/LICENSE-2.0.html)    
+Griffin has two types of entities:
+* **Measure** describes how to computes a metric.
+* **Job** schedules when to compute a metric.
 
-Apache Griffin is a model driven data quality solution for modern data systems. It provides a standard process to define data quality measures, execute, report, as well as an unified dashboard across multiple data systems. 
+For example, we define a measure called daily_user_action_count_diff, which means the 
+difference ratio of total user actions count between today and yesterday. Defining a measure won't
+start any computation. To calculate the ratio every day, we need to also create a job.
 
-## Getting Started
+## Architecture
 
-### Quick Start
+Griffin has 2.1 main components
+* Service (1 pt)
+* Measure (1 pt)
+* UI      (0.1 pt)
 
-You can try Griffin in docker following the [docker guide](griffin-doc/docker/griffin-docker-guide.md).
+### Service
 
-### Environment for Dev
+Griffin service provides some simple REST APIs. Users can use these APIs to manage measurements and
+jobs. Measurements and jobs data are stored in a PG database right now.
 
-Follow [Apache Griffin Development Environment Build Guide](griffin-doc/dev/dev-env-build.md) to set up development environment.
+### Measure
 
-### Deployment at Local
+Measure is where the main logic lives. Griffin service calls livy to trigger jobs based on the
+specified cron expressions. Livy parses the request payload, downloads the "measure" jar to actually
+execute the job.
 
-If you want to deploy Griffin in your local environment, please follow [Apache Griffin Deployment Guide](griffin-doc/deploy/deploy-guide.md).
+### UI
 
-## Community
+[UI](http://ec2-52-80-231-9.cn-north-1.compute.amazonaws.com.cn:8080/) provides a simple interface
+to create measurements and jobs. It is far from complete. Using our own scripts is highly recommended.
 
-For more information about Griffin, please visit our website at: [griffin home page](http://griffin.apache.org).
+## Build
 
-You can contact us via email:
-- dev-list: <a href="mailto:dev@griffin.incubator.apache.org">dev@griffin.incubator.apache.org</a>
-- user-list: <a href="mailto:users@griffin.incubator.apache.org">users@griffin.incubator.apache.org</a>
+We use Docker to run a Griffin service. You can find the docker file
+[here](https://github.com/ruguoapp/incubator-griffin/blob/jike/Dockerfile). The simplest way to
+build is running
 
-You can also subscribe the latest information by sending a email to [subscribe dev-list](mailto:dev-subscribe@griffin.incubator.apache.org) and [subscribe user-list](mailto:users-subscribe@griffin.incubator.apache.org).
-You can also subscribe the latest information by sending a email to subscribe dev-list and user-list:
 ```
-dev-subscribe@griffin.incubator.apache.org
-users-subscribe@griffin.incubator.apache.org
+./start.sh
 ```
 
-You can access our issues on [JIRA page](https://issues.apache.org/jira/browse/GRIFFIN)
+## Run
 
-## Contributing
+After we build a new griffin docker image, simply log in to the griffin cluster and then run the
+"run-griffin.sh" script at the home directory. To easily check the log, I'm using tmux. You may need
+to run
 
-See [How to Contribute](http://griffin.apache.org/2017/03/04/community) for details on how to contribute code, documentation, etc.
+```
 
-## References
-- [Home Page](http://griffin.incubator.apache.org/)
-- [Wiki](https://cwiki.apache.org/confluence/display/GRIFFIN/Apache+Griffin)
-- Documents:
-	- [Measure](griffin-doc/measure)
-	- [Service](griffin-doc/service)
-	- [UI](griffin-doc/ui)
-	- [Docker usage](griffin-doc/docker)
-	- [Postman API](griffin-doc/service/postman)
+tmux attach -t griffin-docker
+./run-griffin.sh
+# detach by using `Ctrl-b d`
+
+```
+
+## Current Measures and Jobs
+
+Current measures and jobs are defined [here](https://github.com/ruguoapp/incubator-griffin/blob/jike/jike-dq-checks/all_checks.json). To update
+the data after modifying this file, simply run 
+
+```
+cd jike-dq-checks
+./update_checks.py
+```
+
+### Check Schema
+
+```
+    {
+      "name": "daily_user_action_count_diff",                                            # Name. Don't Conflict.
+      "description": "Daily user action count compaired with yesterday.",                # Description.
+      "tables": ["user_action"],                                                         # All used tables.
+      "rules": [                                                                         # Define you logic here.
+        {
+            "dsl":"spark-sql",                                                           # This rule is a spark sql.
+            "name": "all_null_stats",                                                    # Create a view of results using this name.
+            "rule": "select dt, case when rowIsAllNull(struct(*)) then 1 else 0 end as isAllNull from user_action where dt=date_sub(current_date(), 1)"
+        },
+        ...
+        {
+            "dsl":"spark-sql",
+            "name": "all_null_ratio",
+            "rule": "select (all_null_count.c / total_count.c) as all_null_ratio from all_null_count inner join total_count on all_null_count.dt = total_count.dt",
+            "export": "true"                                                             # export this as part of results.
+        }
+      ],
+      "cron.expression": "0 0 10 1/1 * ? *",                                             # When to run this
+      "cron.time.zone": "GMT+8:00",                                                      # Time zone
+      "offset": "-1d"                                                                    # -1d means runing on yesterday's data.
+    },
+```
+
+**Don't worry, update_checks will ONLY upsert new/changed checks.**
+
+**Note**: this python script requires *requests* library.
+
+## *DSL*s and *UDF*s
+
+To make writing measures easier, we pre-define some UDFs and DSLs. DSLs are actually not
+DSLs. Currently, it is only evaluated by using Scala *eval*. It can potentially damage our
+data, but it is not a big problem since Griffin is only available internally.
+
+### UDF
+
+* ```rowHasNullColumns```: determine if a row has columns with null values.
+* ```rowIsAllNull```: determine is all columns are now in one column.
+
+### DSL
+
+* ```Count.diff_ratio(table_name, result_name)```: compute the difference ratio
+of row counts between today and yesterday for ```table_name```.
+
+### How to Contribute
+
+UDFs are defined in [JikeDataQualityCheckUDFs](https://github.com/ruguoapp/incubator-griffin/blob/jike/measure/src/main/scala/org/apache/griffin/measure/step/builder/udf/JikeDataQualityCheckUDFs.scala)
+
+DSLs are defined in [com.okjike.griffin.dsl](https://github.com/ruguoapp/incubator-griffin/tree/jike/measure/src/main/scala/com/okjike/griffin/dsl)
+
+## Alerts
+
+Currently alerts are done using [Zeppelin](http://zepl.ruguoapp.com:8890/#/notebook/2DK6315ER).
+Simply adding your test configuration in paragraph '数据质量测试项配置'. To make our lives better, emails
+are sent only if any test fails.
