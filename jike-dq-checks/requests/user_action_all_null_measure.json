@@ -1,0 +1,56 @@
+{
+    "name": "user_action_data_validation",
+    "measure.type": "griffin",
+    "dq.type": "ACCURACY",
+    "process.type": "BATCH",
+    "owner": "test",
+    "description": "Daily user action data validation.",
+    "data.sources": [
+        {
+            "name":"source",
+            "connectors":[
+                {
+                    "name":"user_action_source",
+                    "type":"HIVE",
+                    "version":"1.2",
+                    "data.unit":"1day",
+                    "data.time.zone":"UTC(WET,GMT)",
+                    "config":{
+                        "database":"default",
+                        "table.name":"user_action"
+                    }
+                }
+            ]
+        }
+    ],
+    "evaluate.rule":{
+        "rules":[
+            {
+                "dsl.type":"spark-sql",
+                "dq.type":"PROFILING",
+                "name": "all_null_stats",
+                "rule": "select dt, case when rowIsAllNull(struct(*)) then 1 else 0 end as isAllNull from user_action where dt=date_sub(current_date(), 1)"
+            },
+            {
+                "dsl.type":"spark-sql",
+                "dq.type":"PROFILING",
+                "name": "all_null_count",
+                "rule": "select dt, sum(isAllNull) as c from all_null_stats group by dt"
+            },
+            {
+                "dsl.type":"spark-sql",
+                "dq.type":"PROFILING",
+                "name": "total_count",
+                "rule": "select dt, count(*) as c from all_null_stats group by dt"
+            },
+            {
+                "dsl.type":"spark-sql",
+                "dq.type":"PROFILING",
+                "name": "all_null_ratio",
+                "rule": "select (all_null_count.c / total_count.c) as all_null_ratio from all_null_count inner join total_count on all_null_count.dt = total_count.dt",
+                "metric": {
+                }
+            }
+        ]
+    }
+}

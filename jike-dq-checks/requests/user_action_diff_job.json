@@ -1,0 +1,17 @@
+{
+    "measure.id": 1053,
+    "job.name":"user_action_count_diff_ratio_job",
+    "job.type":"batch",
+    "cron.expression": "0 15 15 1/1 * ? *",
+    "cron.time.zone": "GMT+8:00",
+    "data.segments": [
+        {
+            "data.connector.name": "user_action_source",
+            "as.baseline":true, 
+            "segment.range": {
+                "begin": "-1d",
+                "length": "1d"
+            }
+        }
+    ]
+}

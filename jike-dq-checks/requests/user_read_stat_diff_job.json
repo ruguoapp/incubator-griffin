@@ -1,0 +1,17 @@
+{
+    "measure.id": 853,
+    "job.name":"user_read_count_diff_ratio_job_6",
+    "job.type":"batch",
+    "cron.expression": "0 52 10 1/1 * ? *",
+    "cron.time.zone": "GMT+8:00",
+    "data.segments": [
+        {
+            "data.connector.name": "user_read_stat_source",
+            "as.baseline":true, 
+            "segment.range": {
+                "begin": "-1d",
+                "length": "1d"
+            }
+        }
+    ]
+}

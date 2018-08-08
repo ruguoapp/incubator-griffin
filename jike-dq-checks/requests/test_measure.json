@@ -1,0 +1,38 @@
+{
+    "name": "test_user_action_count",
+    "measure.type": "griffin",
+    "dq.type": "ACCURACY",
+    "process.type": "BATCH",
+    "owner": "test",
+    "description": "Daily user action count compaired with yesterday.",
+    "data.sources": [
+        {
+            "name":"source",
+            "connectors":[
+                {
+                    "name":"user_action_source",
+                    "type":"HIVE",
+                    "version":"1.2",
+                    "data.unit":"1day",
+                    "data.time.zone":"UTC(WET,GMT)",
+                    "config":{
+                        "database":"default",
+                        "table.name":"user_action"
+                    }
+                }
+            ]
+        }
+    ],
+    "evaluate.rule":{
+        "rules":[
+            {
+                "dsl.type":"jike-dsl",
+                "dq.type":"PROFILING",
+                "name": "difference_ratio",
+                "rule": "Count.diff_ratio(\"user_action\", \"difference_ratio\")",
+                "metric": {
+                }
+            }
+        ]
+    }
+}

@@ -1,0 +1,20 @@
+{
+  "checks": [
+    {
+      "name": "daily_user_action_count_diff",
+      "description": "Daily user action count compaired with yesterday.",
+      "tables": ["user_action"],
+      "rules": [
+        {
+          "dsl": "jike-dsl",
+          "name": "difference_ratio",
+          "rule": "Count.diff_ratio(\"user_action\", \"difference_ratio\")",
+          "export": "true"
+        }
+      ],
+      "cron.expression": "0 09 21 1/1 * ? *",
+      "cron.time.zone": "GMT+8:00",
+      "offset": "-1d"
+    }
+  ]
+}
