@@ -12,7 +12,54 @@
           "export": "true"
         }
       ],
-      "cron.expression": "0 09 21 1/1 * ? *",
+      "cron.expression": "0 0 10 1/1 * ? *",
+      "cron.time.zone": "GMT+8:00",
+      "offset": "-1d"
+    },
+    {
+      "name": "daily_user_read_stat_count_diff",
+      "description": "Daily user read stat count compaired with yesterday.",
+      "tables": ["user_read_stat"],
+      "rules": [
+        {
+          "dsl": "jike-dsl",
+          "name": "difference_ratio",
+          "rule": "Count.diff_ratio(\"user_read_stat\", \"difference_ratio\")",
+          "export": "true"
+        }
+      ],
+      "cron.expression": "0 1 10 1/1 * ? *",
+      "cron.time.zone": "GMT+8:00",
+      "offset": "-1d"
+    },
+    {
+      "name": "daily_user_action_data_validation",
+      "description": "Daily user action data validation.",
+      "tables": ["user_action"],
+      "rules":[
+        {
+            "dsl":"spark-sql",
+            "name": "all_null_stats",
+            "rule": "select dt, case when rowIsAllNull(struct(*)) then 1 else 0 end as isAllNull from user_action where dt=date_sub(current_date(), 1)"
+        },
+        {
+            "dsl":"spark-sql",
+            "name": "all_null_count",
+            "rule": "select dt, sum(isAllNull) as c from all_null_stats group by dt"
+        },
+        {
+            "dsl":"spark-sql",
+            "name": "total_count",
+            "rule": "select dt, count(*) as c from all_null_stats group by dt"
+        },
+        {
+            "dsl":"spark-sql",
+            "name": "all_null_ratio",
+            "rule": "select (all_null_count.c / total_count.c) as all_null_ratio from all_null_count inner join total_count on all_null_count.dt = total_count.dt",
+            "export": "true"
+        }
+      ],
+      "cron.expression": "0 2 10 1/1 * ? *",
       "cron.time.zone": "GMT+8:00",
       "offset": "-1d"
     }

@@ -66,7 +66,7 @@ def construct_job_request(check, measure_id):
   ret["cron.time.zone"] = check["cron.time.zone"]
   ret["data.segments"] = []
   segment = {}
-  segment["as.baseline"] = "true"
+  segment["as.baseline"] = True
   segment["data.connector.name"] = construct_data_source(check)[0]["connectors"][0]["name"]
   segment["segment.range"] = {
     "begin": check["offset"],
@@ -81,33 +81,124 @@ def measure_fail_to_create(measure, r):
 def job_fail_to_create(job, r):
   print("Job %s fails to be created. Status code %d. Error message is %s." % (job["job.name"], r.status_code, r.json()))
 
+def get_all_existing_measures(endpoint):
+  api_uri = endpoint + measure_path
+  response = requests.get(api_uri).json()
+  return { measure["name"] : measure for measure in response}
+
+def get_all_existing_jobs(endpoint):
+  api_uri = endpoint + job_path
+  response = requests.get(api_uri).json()
+  return { job["job.name"] : job for job in response}
+
+def get_existing_measure_by_name(measure_name, existing_measures):
+  if measure_name in existing_measures:
+    return existing_measures[measure_name]
+  return None
+
+def get_existing_job_by_name(job_name, existing_jobs):
+  if job_name in existing_jobs:
+    return existing_jobs[job_name]
+  return None
+
 def create_measure(endpoint, measure):
-  '''Create a griffin-measure and return the measure id.'''
+  '''Create a griffin-measure and return the measure.'''
   api_uri = endpoint + measure_path
   r = requests.post(api_uri, json=measure)
   if r.status_code == 409:
     return -1
   elif r.status_code >= 300:
     measure_fail_to_create(measure, r)
-    return -1
+    return None
   else:
-    return r.json()["id"]
+    return r.json()
+
+def update_measure(endpoint, measure):
+  '''Update a griffin-measure and return the measure.'''
+  api_uri = endpoint + measure_path
+  r = requests.put(api_uri, json=measure)
+  if r.status_code >= 300:
+    measure_fail_to_create(measure, r)
+    return None
+  else:
+    return r.json()
 
 def create_job(endpoint, job):
-  '''Create a griffin-job and return if the job is created.'''
+  '''Create a griffin-job and return the job.'''
   api_uri = endpoint + job_path
   r = requests.post(api_uri, json=job)
-  # TODO: handle already exist error
   if r.status_code >= 300:
     job_fail_to_create(job, r)
-  return r.status_code == 200 or r.status_code == 201
+  return r.json()
+
+def update_job(endpoint, id, job):
+  '''Update a griffin-job and return the job.'''
+  api_uri = endpoint + job_path + "/" + str(id)
+  requests.delete(api_uri)
+  return create_job(endpoint, job)
+
+existing_jobs = get_all_existing_jobs(griffin_endpoint)
+existing_measures = get_all_existing_measures(griffin_endpoint)
+
+def is_duplicate(entity, existing):
+  if existing == None:
+    return False
+  if isinstance(entity, dict):
+    for key in entity:
+      if key not in existing:
+        return False
+      if not is_duplicate(entity[key], existing[key]):
+        return False
+    return True
+  elif isinstance(entity, list) and isinstance(existing, list):
+    if len(entity) != len(existing):
+      return False
+    for i in range(len(entity)):
+      if not is_duplicate(entity[i], existing[i]):
+        return False
+    return True
+  else:
+    return entity == existing
 
 with open("all_checks.json", 'r') as f:
   checks = json.load(f)
   for check in checks["checks"]:
+    print("============ Updating %s =============" % check["name"]) 
+
     create_measure_request = construct_measure_request(check)
-    measure_id = create_measure(griffin_endpoint, create_measure_request)
-    if measure_id < 0:
+    measure_name = create_measure_request["name"]
+    existing_measure = get_existing_measure_by_name(measure_name, existing_measures)
+    new_measure = None
+    message = ""
+    if existing_measure == None:
+      new_measure = create_measure(griffin_endpoint, create_measure_request)
+      message = "Created measure [%s]" % measure_name
+    elif not is_duplicate(create_measure_request, existing_measure):
+      create_measure_request["id"] = existing_measure["id"]
+      new_measure = update_measure(griffin_endpoint, create_measure_request)
+      message = "Updated measure [%s]" % measure_name
+    else:
+      new_measure = existing_measure
+      message = "Measure [%s] already exists." % measure_name
+    if new_measure == None:
       continue
-    create_job_request = construct_job_request(check, measure_id)
-    create_job(griffin_endpoint, create_job_request)
+    existing_measures[measure_name] = new_measure
+    print("  %s" % message)
+
+    create_job_request = construct_job_request(check, new_measure["id"])
+    job_name = create_job_request["job.name"]
+    existing_job = get_existing_job_by_name(job_name, existing_jobs)
+    new_job = None
+    if existing_job == None:
+      new_job = create_job(griffin_endpoint, create_job_request)
+      message = "Created job [%s]" % job_name
+    elif not is_duplicate(create_job_request, existing_job):
+      new_job = update_job(griffin_endpoint, existing_job["id"], create_job_request)
+      message = "Updated job [%s]" % job_name
+    else:
+      new_job = existing_job
+      message = "Job [%s] already exists." % job_name
+    if new_job == None:
+      continue
+    existing_jobs[job_name] = new_job
+    print("  %s" % message)
