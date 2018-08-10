@@ -30,7 +30,6 @@ object Count {
       if (!conditions.isEmpty) {
         join_count_query = join_count_query + " where " + conditions
       }
-      sqlContext.sql(join_count_query).show(10)
       val match_count = sqlContext.sql(join_count_query).collect().head.getLong(0)
 
       var count_query = f"select count(*) from $src_table"

@@ -62,6 +62,22 @@
       "cron.expression": "0 2 10 1/1 * ? *",
       "cron.time.zone": "GMT+8:00",
       "offset": "-1d"
+    },
+    {
+      "name": "daily_user_basic_completion_ratio",
+      "description": "Daily user basic completion ratio check.",
+      "tables": ["user", "user_basic"],
+      "rules": [
+        {
+          "dsl": "jike-dsl",
+          "name": "match_ratio",
+          "rule": "Count.match_ratio(\"user\", \"user_basic\", Array((\"user.object_id\", \"user_basic.user_id\")))",
+          "export": "true"
+        }
+      ],
+      "cron.expression": "0 3 10 1/1 * ? *",
+      "cron.time.zone": "GMT+8:00",
+      "offset": "-1d"
     }
   ]
 }
