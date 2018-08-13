@@ -8,7 +8,7 @@
         {
           "dsl": "jike-dsl",
           "name": "difference_ratio",
-          "rule": "Count.diff_ratio(\"user_action\", \"difference_ratio\")",
+          "rule": "Count.diff_ratio(''user_action'', ''difference_ratio'')",
           "export": "true"
         }
       ],
@@ -24,7 +24,7 @@
         {
           "dsl": "jike-dsl",
           "name": "difference_ratio",
-          "rule": "Count.diff_ratio(\"user_read_stat\", \"difference_ratio\")",
+          "rule": "Count.diff_ratio(''user_read_stat'', ''difference_ratio'')",
           "export": "true"
         }
       ],
@@ -71,7 +71,7 @@
         {
           "dsl": "jike-dsl",
           "name": "match_ratio",
-          "rule": "Count.match_ratio(\"user\", \"user_basic\", Array((\"user.object_id\", \"user_basic.user_id\")))",
+          "rule": "Count.match_ratio(''user'', ''user_basic'', Array((''user.object_id'', ''user_basic.user_id'')))",
           "export": "true"
         }
       ],

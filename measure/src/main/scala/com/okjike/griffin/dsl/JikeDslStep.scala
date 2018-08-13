@@ -13,8 +13,7 @@ case class JikeDslStep (name: String,
   override def execute(context: DQContext): Boolean = {
     val sqlContext = context.sqlContext
     try {
-      val toEval = f"import com.okjike.griffin.dsl.functions._\n$rule"
-      val df = Eval.apply[BaseFunction](toEval).apply(sqlContext)
+      val df = Eval.apply[BaseFunction](preProcess(rule)).apply(sqlContext)
       if (cache) context.dataFrameCache.cacheDataFrame(name, df)
       context.runTimeTableRegister.registerTable(name, df)
       true
@@ -24,5 +23,10 @@ case class JikeDslStep (name: String,
         false
       }
     }
+  }
+
+  private def preProcess(rule: String) : String = {
+    val escapedRule = rule.replaceAll("''", "\"")
+    f"import com.okjike.griffin.dsl.functions._\n$escapedRule"
   }
 }
